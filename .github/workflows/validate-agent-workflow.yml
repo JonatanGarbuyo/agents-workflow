@@ -1,0 +1,32 @@
+name: Validate agent workflow fixtures
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "bootstrap/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-handoff-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate stage A fixture
+        run: node scripts/validate-vertical-slice.mjs --stage A
+
+      - name: Validate stage B fixture
+        run: node scripts/validate-vertical-slice.mjs --stage B
+
+      - name: Run validator negative and positive tests
+        run: node scripts/validate-vertical-slice.mjs --self-test
