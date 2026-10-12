@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const [stage, expectedCheckpoint = ""] = process.argv.slice(2);
@@ -17,9 +17,35 @@ function fail(message) {
   process.stderr.write(`Checkpoint rejected: ${message}\n`);
   process.exit(1);
 }
-function handoffs() {
-  return readdir(handoffDir).then((names) => names.filter((name) => name.endsWith(".json")));
+async function requirePathType(path, type) {
+  let stat;
+  try {
+    stat = await lstat(path);
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
+  if (stat.isSymbolicLink() || (type === "directory" ? !stat.isDirectory() : !stat.isFile())) {
+    fail(`expected a non-symlink ${type}: ${path}`);
+  }
+  return true;
 }
+async function handoffs() {
+  const names = await readdir(handoffDir).catch((error) => {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  });
+  for (const name of names.filter((entry) => entry.endsWith(".json"))) {
+    await requirePathType(join(handoffDir, name), "file");
+  }
+  return names.filter((name) => name.endsWith(".json"));
+}
+
+await requirePathType("examples", "directory");
+await requirePathType("examples/vertical-slice", "directory");
+await requirePathType(fixturePath, "file");
+const handoffRootExists = await requirePathType("agent-handoffs", "directory");
+if (handoffRootExists) await requirePathType(handoffDir, "directory");
 
 if (!["A", "B"].includes(stage) || !runId || !branchName) {
   fail("expected stage A|B, GITHUB_RUN_ID, and a named task branch");
@@ -100,7 +126,7 @@ const handoff = {
   next_action: stage === "A" ? "Dispatch a fresh Stage B run with this run's final branch commit SHA as expected_checkpoint." : "Review the two handoffs and confirm cross-runner testing separately."
 };
 const handoffPath = join(handoffDir, `${timestamp}-actions-${runId}.json`);
-await writeFile(handoffPath, `${JSON.stringify(handoff, null, 2)}\n`);
+await writeFile(handoffPath, `${JSON.stringify(handoff, null, 2)}\n`, { flag: "wx" });
 const persistedHandoff = JSON.parse(await readFile(handoffPath, "utf8"));
 if (
   persistedHandoff.schema_version !== 1 ||
