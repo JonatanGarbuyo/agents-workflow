@@ -18,7 +18,7 @@ A reusable, provider-agnostic workflow for AI-assisted engineering projects. The
 3. Review the [portable vertical slice](docs/agents/vertical-slice.md).
 4. Inspect the [handoff schema](schemas/agent-handoff.schema.json) and examples under `examples/vertical-slice/`.
 5. The [validation workflow](.github/workflows/validate-agent-workflow.yml) runs fixture/schema checks plus runtime checkpoint tests on pushes and pull requests. Run them locally with `node scripts/validate-vertical-slice.mjs --self-test` and `node scripts/test-runtime-checkpoint.mjs`. The runtime tests use temporary Git repositories and do not need provider credentials.
-6. Follow the [Wayfinder map issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/1) and [vertical-slice issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/4) for decisions and follow-up work.
+6. Read [ADR 0001: Template strategy and shared runner contract](docs/adr/0001-template-and-runner-contract.md) and follow the [Wayfinder map issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/1), [vertical-slice issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/4), [remote checkpoint issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/6), and [real-repository pilot](https://github.com/JonatanGarbuyo/agents-workflow/issues/7).
 
 ## Status
 
