@@ -20,32 +20,40 @@ Keep runner-specific code behind thin adapters. Do not encode task state only in
 
 The frontier model owns high-value reasoning: architecture, ambiguous decisions, planning, supervision, escalation, and final review. It should delegate routine implementation, test writing, and first-pass review to fit-for-purpose lower-cost agents.
 
-The frontier model must not enter an open-ended implementation loop. Before acting directly, it should identify why delegation is unsuitable. Define explicit retry budgets, stop conditions, and escalation triggers. On repeated failure, preserve evidence, record a blocker, and return control to the supervisor rather than silently retrying.
+The frontier model must not enter an open-ended implementation loop. Default to at most two failed attempts using the same approach. Every retry must state what materially changed and why it could work. After the budget is exhausted, preserve evidence and stop as blocked or escalate for a specific decision. Direct frontier implementation is an explicit exception when delegation is unavailable or disproportionate and the task is genuinely small.
 
-Model and provider selection must be configurable by role. Avoid hard-coding Gemini or any other provider into the workflow contract.
+Model and provider selection must be configurable by role. Avoid hard-coding any provider into the workflow contract.
+
+## Roles
+
+- **Frontier planner/supervisor:** resolve ambiguity, architecture, task decomposition, routing, supervision, escalation, and final review.
+- **Implementer:** one bounded ticket, relevant checks, and exact observed evidence.
+- **Independent reviewer:** evaluate the actual diff against acceptance criteria, correctness, security, regression, and test coverage.
+- **Frontier final reviewer:** examine the actual diff, acceptance criteria, CI evidence, review findings, and unresolved risks before recommending merge.
+
+A PR being opened or code being generated is not a completion condition.
 
 ## Quality and permissions
 
 Implementation agents work against explicit acceptance criteria and report tests actually run. Review should be independent of implementation when practical. The final reviewer checks the diff, test evidence, risks, and acceptance criteria before merge.
 
-Use least-privilege credentials. An agent should not change repository protections, secrets, or merge policy as a side effect of implementing a task.
+Use least-privilege credentials. An agent must not change repository protections, secrets, merge policy, or deployment state as a side effect of implementing a task.
 
 ## Skills
 
 Install and pin repository-local skills so local OpenCode can discover them after a clone. Start with Matt Pocock's setup and Wayfinder skills; add stack-specific skills such as better-typescript or shadcn only when relevant. Skill setup should be reproducible and documented, not dependent on one machine's global state.
 
-## Decisions still open
+## Template strategy
 
-Use Wayfinder to resolve, document, and convert these into dependency-aware issues before broad implementation:
+Use a GitHub Template Repository for new projects so each generated project has an independent history. A template does not automatically distribute future workflow improvements. Existing projects need an explicit, reviewable, versioned update mechanism; that mechanism remains open pending a disposable-repository experiment.
 
-1. Template strategy and how workflow improvements are propagated to repositories generated from the template.
-2. Canonical task lifecycle and task/agent contract shared by Actions and OpenCode.
-3. Role definitions, delegation rules, model routing, retry budgets, and escalation.
-4. Handoff file schema, unique naming, retention, and recovery semantics.
-5. Issue labels, tracker setup, and repository bootstrap.
-6. CI gates, independent review, final review, and merge permissions.
-7. Skill version pinning and stack-conditional skill installation.
-8. The smallest end-to-end vertical slice that proves portability.
+Do not enable the template setting until Actions fresh-run recovery, both Actions/OpenCode directions, a real approved-ticket pilot, and disposable-repository bootstrap have been demonstrated.
+
+See [ADR 0001: Template strategy and shared runner contract](../adr/0001-template-and-runner-contract.md).
+
+## Validation status
+
+Fixture/schema checks and deterministic fresh-process checkpoint tests validate the initial contracts and runtime logic. They do not yet prove a remotely dispatched Actions checkpoint, cross-runner portability, successful real-ticket execution, or template bootstrap. Record each as unproven until actual repository evidence exists.
 
 ## References
 
