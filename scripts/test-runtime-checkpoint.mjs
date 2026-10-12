@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile, readdir } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile, readdir, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -85,6 +85,18 @@ try {
   const missingResult = runStage(missing, "B", "301", git(missing, "rev-parse", "HEAD"));
   expectRejected(missingResult, "missing Stage A handoff");
 
+  // A task branch must not redirect a trusted write through a symlinked fixture path.
+  const symlinked = await setup();
+  workdirs.push(symlinked);
+  const fixtureSymlink = join(symlinked, "examples/vertical-slice/runtime-fixture.txt");
+  const outsideFile = join(symlinked, "outside.txt");
+  await writeFile(outsideFile, "outside sentinel\\n");
+  await rm(fixtureSymlink);
+  await symlink(outsideFile, fixtureSymlink);
+  const symlinkResult = runStage(symlinked, "A", "350");
+  expectRejected(symlinkResult, "symlinked fixture");
+  assert.equal(await readFile(outsideFile, "utf8"), "outside sentinel\\n", "symlink target must not be modified");
+
   // Missing Stage A marker must also fail closed even if the supplied SHA is current.
   const noMarker = await setup();
   workdirs.push(noMarker);
@@ -95,7 +107,7 @@ try {
   git(noMarker, "commit", "-m", "test: remove Stage A marker");
   expectRejected(runStage(noMarker, "B", "401", git(noMarker, "rev-parse", "HEAD")), "missing Stage A marker");
 
-  process.stdout.write("Runtime checkpoint tests passed: fresh-run resume, stale SHA, repeated Stage B, missing handoff, and missing marker.\n");
+  process.stdout.write("Runtime checkpoint tests passed: fresh-run resume, stale SHA, repeated Stage B, missing handoff, missing marker, and symlink rejection.\n");
 } finally {
   await Promise.all(workdirs.map((cwd) => rm(cwd, { recursive: true, force: true })));
 }
