@@ -13,11 +13,13 @@ A reusable, provider-agnostic workflow for AI-assisted engineering projects. The
 
 ## Start here
 
-Read [workflow principles](docs/agents/workflow-principles.md). The first Wayfinder map issue tracks decisions that must be resolved before broad implementation.
+1. Read [workflow principles](docs/agents/workflow-principles.md).
+2. Review the proposed [task execution contract](docs/agents/task-contract.md), including inputs, outputs, recovery, and escalation rules.
+3. Follow the [Wayfinder map issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/1) for architectural decisions and implementation planning.
 
 ## Status
 
-Bootstrap and architectural discovery. This repository is not yet marked as a GitHub Template Repository; that should happen after the workflow is implemented and validated by creating a disposable repository from the template.
+Bootstrap and architectural discovery. The task contract is a proposed v1, not yet implemented or validated by an end-to-end runner. This repository is not yet marked as a GitHub Template Repository; that should happen after the workflow is implemented and validated by creating a disposable repository from the template.
 
 ## References
 
