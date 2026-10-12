@@ -78,24 +78,17 @@ Do not claim tests passed unless they were actually run and their result was obs
 
 ## 7. Handoff format and location
 
-Write one new Markdown file per execution; do not append to a shared growing log.
+Use JSON for execution handoffs so shared validation can check required fields without parsing free-form prose. The schema is [agent-handoff.schema.json](../../schemas/agent-handoff.schema.json), version 1.
+
+Write one new file per execution; do not append to a shared growing log.
 
 Suggested path:
 
-`agent-handoffs/<issue-number>/<UTC-timestamp>-<runner>-<short-run-id>.md`
+`agent-handoffs/<issue-number>/<UTC-timestamp>-<runner>-<run-id>.json`
+
+Required fields are defined in the schema and include issue URL, stage (for the vertical-slice test), runner, unique run ID, UTC timestamp, outcome, starting and ending commit, changed files, validation command/result, observed checkpoint, and next action. A pull request URL is optional.
 
 Use a unique filename and never overwrite a previous execution record. Keep each handoff short; link to issues, PRs, commits, logs, and check runs instead of copying large outputs.
-
-Required fields:
-
-- Issue and PR links, if applicable.
-- UTC timestamp, runner (`actions` or `opencode`), role, and model/provider identifier when available.
-- Starting commit and ending commit, if changed.
-- Outcome: progress, review, blocked, or complete.
-- Changed files and meaningful decisions.
-- Exact checks run and their results; clearly list checks not run.
-- Blockers, risks, and unresolved questions.
-- Recommended next action and the evidence that supports it.
 
 The handoff directory is an execution journal. The issue and PR must still be updated when task status, blockers, acceptance criteria, or review outcomes change.
 
