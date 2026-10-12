@@ -39,3 +39,6 @@ jobs:
 
       - name: Test runtime checkpoint resume and rejection paths
         run: node scripts/test-runtime-checkpoint.mjs
+
+      - name: Test checkpoint workflow trust boundary
+        run: node scripts/test-checkpoint-workflow-security.mjs
