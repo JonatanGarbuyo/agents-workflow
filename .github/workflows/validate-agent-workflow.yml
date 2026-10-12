@@ -35,10 +35,15 @@ jobs:
         run: |
           node --check scripts/run-vertical-slice-stage.mjs
           node --check scripts/validate-runtime-checkpoint.mjs
-          node --check scripts/test-runtime-checkpoint.mjs\n          node --check scripts/parse-checkpoint-command.mjs\n          node --check scripts/test-parse-checkpoint-command.mjs
+          node --check scripts/test-runtime-checkpoint.mjs
+          node --check scripts/parse-checkpoint-command.mjs
+          node --check scripts/test-parse-checkpoint-command.mjs
 
       - name: Test runtime checkpoint resume and rejection paths
         run: node scripts/test-runtime-checkpoint.mjs
+
+      - name: Test checkpoint command parser
+        run: node scripts/test-parse-checkpoint-command.mjs
 
       - name: Test checkpoint workflow trust boundary
         run: node scripts/test-checkpoint-workflow-security.mjs
