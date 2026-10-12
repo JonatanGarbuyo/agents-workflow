@@ -6,7 +6,7 @@ import { join } from "node:path";
 const [stage, expectedCheckpoint = ""] = process.argv.slice(2);
 const runId = process.env.GITHUB_RUN_ID;
 const issueUrl = process.env.TASK_ISSUE_URL ?? "https://github.com/JonatanGarbuyo/agents-workflow/issues/6";
-const branchName = process.env.GITHUB_REF_NAME;
+const branchName = process.env.TASK_BRANCH ?? process.env.GITHUB_REF_NAME;
 const fixturePath = "examples/vertical-slice/runtime-fixture.txt";
 const handoffDir = "agent-handoffs/6";
 
