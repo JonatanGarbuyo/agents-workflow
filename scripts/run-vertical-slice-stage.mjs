@@ -41,9 +41,9 @@ async function handoffs() {
   return names.filter((name) => name.endsWith(".json"));
 }
 
-await requirePathType("examples", "directory");
-await requirePathType("examples/vertical-slice", "directory");
-await requirePathType(fixturePath, "file");
+if (!(await requirePathType("examples", "directory"))) fail("required examples directory is missing");
+if (!(await requirePathType("examples/vertical-slice", "directory"))) fail("required vertical-slice directory is missing");
+if (!(await requirePathType(fixturePath, "file"))) fail("required runtime fixture is missing");
 const handoffRootExists = await requirePathType("agent-handoffs", "directory");
 if (handoffRootExists) await requirePathType(handoffDir, "directory");
 
