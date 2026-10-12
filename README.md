@@ -16,12 +16,13 @@ A reusable, provider-agnostic workflow for AI-assisted engineering projects. The
 1. Read [workflow principles](docs/agents/workflow-principles.md).
 2. Review the [task execution contract](docs/agents/task-contract.md).
 3. Review the [portable vertical slice](docs/agents/vertical-slice.md).
-4. Inspect the [handoff schema](schemas/agent-handoff.schema.json) and run `node scripts/validate-vertical-slice.mjs --self-test` to check the deterministic fixtures.
-5. Follow the [Wayfinder map issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/1) and [vertical-slice issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/4) for decisions and follow-up work.
+4. Inspect the [handoff schema](schemas/agent-handoff.schema.json) and examples under `examples/vertical-slice/`.
+5. The [fixture validation workflow](.github/workflows/validate-agent-workflow.yml) runs the deterministic checks on pushes and pull requests. The same validator can be invoked from any compatible Node.js environment with `node scripts/validate-vertical-slice.mjs --self-test`.
+6. Follow the [Wayfinder map issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/1) and [vertical-slice issue](https://github.com/JonatanGarbuyo/agents-workflow/issues/4) for decisions and follow-up work.
 
 ## Status
 
-Bootstrap and architectural discovery. The handoff schema and deterministic validator are initial building blocks, not a working agent runner. The validator has not yet been executed in this environment, and cross-runner portability remains unproven. This repository is not yet marked as a GitHub Template Repository; enable that only after the workflow passes a disposable-repository test.
+Bootstrap and architectural discovery. The handoff schema, fixtures, validator, and CI check are initial building blocks, not a working agent runner. Cross-runner portability remains unproven until the task is resumed across Actions and OpenCode in both directions. This repository is not yet marked as a GitHub Template Repository; enable that only after the workflow passes a disposable-repository test.
 
 ## References
 
