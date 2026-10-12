@@ -95,12 +95,26 @@ const handoff = {
   start_commit: startCommit,
   end_commit: endCommit,
   changed_files: [fixturePath],
-  validation: { command: `node scripts/run-vertical-slice-stage.mjs ${stage}`, result: "passed" },
+  validation: { command: "checkpoint stage runner and handoff metadata checks", result: "passed" },
   checkpoint_observed: stage === "A" ? "none" : "stage-a-complete",
   next_action: stage === "A" ? "Dispatch a fresh Stage B run with this run's final branch commit SHA as expected_checkpoint." : "Review the two handoffs and confirm cross-runner testing separately."
 };
 const handoffPath = join(handoffDir, `${timestamp}-actions-${runId}.json`);
 await writeFile(handoffPath, `${JSON.stringify(handoff, null, 2)}\n`);
+const persistedHandoff = JSON.parse(await readFile(handoffPath, "utf8"));
+if (
+  persistedHandoff.schema_version !== 1 ||
+  persistedHandoff.stage !== stage ||
+  persistedHandoff.runner !== "actions" ||
+  persistedHandoff.issue_url !== issueUrl ||
+  persistedHandoff.run_id !== String(runId) ||
+  persistedHandoff.start_commit !== startCommit ||
+  persistedHandoff.end_commit !== endCommit ||
+  persistedHandoff.validation?.result !== "passed" ||
+  !persistedHandoff.next_action
+) {
+  fail("generated handoff failed its metadata validation");
+}
 git("add", handoffPath);
 git("commit", "-m", `test(vertical-slice): record stage ${stage} handoff`);
 process.stdout.write(`Stage ${stage} checkpoint fixture commit: ${endCommit}\n`);
