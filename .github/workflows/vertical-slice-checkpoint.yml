@@ -3,6 +3,10 @@ name: Run portable vertical-slice checkpoint
 on:
   workflow_dispatch:
     inputs:
+      task_branch:
+        description: Existing disposable task branch (must start with test/vertical-slice-)
+        type: string
+        required: true
       stage:
         description: Stage to execute in this fresh run
         type: choice
@@ -11,26 +15,36 @@ on:
           - A
           - B
       expected_checkpoint:
-        description: Required for Stage B; exact final branch SHA printed by Stage A
+        description: Required for Stage B; exact final task-branch SHA printed by Stage A
         type: string
         required: false
 
 permissions:
   contents: write
 
+# This workflow must be dispatched from main. The task branch is data, not trusted runner code.
 # One writer per selected task branch. Never cancel a running checkpoint writer.
 concurrency:
-  group: vertical-slice-${{ github.ref }}
+  group: vertical-slice-${{ inputs.task_branch }}
   cancel-in-progress: false
 
 jobs:
   checkpoint:
-    if: startsWith(github.ref_name, 'test/vertical-slice-')
+    if: github.ref == 'refs/heads/main' && startsWith(inputs.task_branch, 'test/vertical-slice-')
     runs-on: ubuntu-latest
     steps:
-      - name: Check out selected task branch
+      - name: Check out trusted runner from main
         uses: actions/checkout@v4
         with:
+          ref: main
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check out task branch as data/worktree
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.task_branch }}
+          path: task
           persist-credentials: true
           fetch-depth: 0
 
@@ -39,28 +53,43 @@ jobs:
         with:
           node-version: 22
 
-      - name: Configure commit identity
+      - name: Configure task-branch commit identity
+        working-directory: task
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Run stage and record durable checkpoint
+      - name: Run trusted stage runner and record durable checkpoint
         env:
           TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+          TASK_BRANCH: ${{ inputs.task_branch }}
           STAGE: ${{ inputs.stage }}
           EXPECTED_CHECKPOINT: ${{ inputs.expected_checkpoint }}
         run: |
+          if [[ ! "$TASK_BRANCH" =~ ^test/vertical-slice-[A-Za-z0-9._/-]+$ || "$TASK_BRANCH" == *".."* ]]; then
+            echo "Rejected task branch name" >&2
+            exit 1
+          fi
           if [ "$STAGE" = "B" ]; then
-            node scripts/run-vertical-slice-stage.mjs B "$EXPECTED_CHECKPOINT"
-            node scripts/validate-runtime-checkpoint.mjs
+            (cd task && node ../scripts/run-vertical-slice-stage.mjs B "$EXPECTED_CHECKPOINT")
+            (cd task && node ../scripts/validate-runtime-checkpoint.mjs)
           else
-            node scripts/run-vertical-slice-stage.mjs A
+            (cd task && node ../scripts/run-vertical-slice-stage.mjs A)
           fi
 
       - name: Push checkpoint and handoff commits
-        run: git push origin "HEAD:${GITHUB_REF_NAME}"
+        working-directory: task
+        env:
+          TASK_BRANCH: ${{ inputs.task_branch }}
+        run: |
+          if [[ ! "$TASK_BRANCH" =~ ^test/vertical-slice-[A-Za-z0-9._/-]+$ || "$TASK_BRANCH" == *".."* ]]; then
+            echo "Rejected task branch name" >&2
+            exit 1
+          fi
+          git push origin "HEAD:refs/heads/$TASK_BRANCH"
 
       - name: Print final checkpoint reference
+        working-directory: task
         run: |
           echo "Final checkpoint SHA: $(git rev-parse HEAD)"
           echo "For Stage B, copy the exact final SHA from the completed Stage A run."
