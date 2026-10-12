@@ -9,7 +9,7 @@ GitHub exposes `workflow_dispatch` only after the workflow file exists on the re
 ## Run procedure
 
 1. After the checkpoint workflow is available from the default branch, create a disposable branch named `test/vertical-slice-6` from the bootstrap branch's tested head. It must contain the pristine `examples/vertical-slice/runtime-fixture.txt` with no stage markers and no `agent-handoffs/6/*.json` records.
-2. Open **Actions → Run portable vertical-slice checkpoint → Run workflow**. Select branch `test/vertical-slice-6` and stage `A`; leave `expected_checkpoint` empty.
+2. Open **Actions → Run portable vertical-slice checkpoint → Run workflow**. Select `main` as the workflow branch (the workflow itself must run from trusted default-branch code), enter `test/vertical-slice-6` as `task_branch`, select stage `A`, and leave `expected_checkpoint` empty. The task branch is checked out separately as data; its scripts are not executed.
 3. Wait for Stage A to finish. Copy the exact **Final checkpoint SHA** printed at the end of the successful run. Stage A creates a fixture commit, then a separate append-only handoff commit, and pushes both.
 4. Start a **new workflow run** on the same branch, select stage `B`, and paste that exact SHA into `expected_checkpoint`.
 5. Stage B verifies that the branch tip still equals the supplied checkpoint, that Stage A's marker and exactly one Stage A handoff exist, and that Stage B has not already completed. It then adds its own marker and unique handoff, validates both handoffs against real Git commits, and pushes.
@@ -21,7 +21,7 @@ GitHub exposes `workflow_dispatch` only after the workflow file exists on the re
 - Stage B must fail if Stage A's marker or handoff is absent, or if Stage B already ran.
 - Stage A must fail if the fixture is not pristine.
 - The workflow serializes writes by branch using a concurrency group. This is a single-writer safeguard, not a general distributed lock.
-- Never dispatch this workflow against `main` or the bootstrap branch. Its job runs only on `test/vertical-slice-*` branches, and the runner also refuses shared development branches.
+- Dispatch the workflow from `main` only and provide a disposable `test/vertical-slice-*` value in `task_branch`. The job fails closed if the workflow ref is not `main`. The runner and validator are loaded from `main`; the task branch is a separate checkout and is only the target of fixture/handoff writes. Branch-name checks are defense in depth, not the trust boundary.
 
 ## What this proves—and what it does not
 
