@@ -1,49 +1,44 @@
 name: Run portable vertical-slice checkpoint
 
+# issue_comment workflows run from the default branch. Unlike workflow_dispatch,
+# the caller cannot choose an untrusted branch version of this privileged workflow.
 on:
-  workflow_dispatch:
-    inputs:
-      task_branch:
-        description: Existing disposable task branch (must start with test/vertical-slice-)
-        type: string
-        required: true
-      stage:
-        description: Stage to execute in this fresh run
-        type: choice
-        required: true
-        options:
-          - A
-          - B
-      expected_checkpoint:
-        description: Required for Stage B; exact final task-branch SHA printed by Stage A
-        type: string
-        required: false
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
 
-# This workflow must be dispatched from main. The task branch is data, not trusted runner code.
-# One writer per selected task branch. Never cancel a running checkpoint writer.
 concurrency:
-  group: vertical-slice-${{ inputs.task_branch }}
+  group: vertical-slice-checkpoint-6
   cancel-in-progress: false
 
 jobs:
   checkpoint:
-    if: github.ref == 'refs/heads/main' && startsWith(inputs.task_branch, 'test/vertical-slice-')
+    if: >-
+      github.event.issue.number == 6 &&
+      !github.event.issue.pull_request &&
+      contains(fromJSON('["OWNER","COLLABORATOR","MEMBER"]'), github.event.comment.author_association) &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
-      - name: Check out trusted runner from main
+      - name: Check out trusted runner from default branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Parse and validate checkpoint command
+        id: command
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: node scripts/parse-checkpoint-command.mjs
 
       - name: Check out task branch as data/worktree
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.task_branch }}
+          ref: ${{ steps.command.outputs.task_branch }}
           path: task
           persist-credentials: true
           fetch-depth: 0
@@ -62,14 +57,10 @@ jobs:
       - name: Run trusted stage runner and record durable checkpoint
         env:
           TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
-          TASK_BRANCH: ${{ inputs.task_branch }}
-          STAGE: ${{ inputs.stage }}
-          EXPECTED_CHECKPOINT: ${{ inputs.expected_checkpoint }}
+          TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
+          STAGE: ${{ steps.command.outputs.stage }}
+          EXPECTED_CHECKPOINT: ${{ steps.command.outputs.expected_checkpoint }}
         run: |
-          if [[ ! "$TASK_BRANCH" =~ ^test/vertical-slice-[A-Za-z0-9._/-]+$ || "$TASK_BRANCH" == *".."* ]]; then
-            echo "Rejected task branch name" >&2
-            exit 1
-          fi
           if [ "$STAGE" = "B" ]; then
             (cd task && node ../scripts/run-vertical-slice-stage.mjs B "$EXPECTED_CHECKPOINT")
             (cd task && node ../scripts/validate-runtime-checkpoint.mjs)
@@ -80,16 +71,12 @@ jobs:
       - name: Push checkpoint and handoff commits
         working-directory: task
         env:
-          TASK_BRANCH: ${{ inputs.task_branch }}
+          TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
         run: |
-          if [[ ! "$TASK_BRANCH" =~ ^test/vertical-slice-[A-Za-z0-9._/-]+$ || "$TASK_BRANCH" == *".."* ]]; then
-            echo "Rejected task branch name" >&2
-            exit 1
-          fi
           git push origin "HEAD:refs/heads/$TASK_BRANCH"
 
       - name: Print final checkpoint reference
         working-directory: task
         run: |
           echo "Final checkpoint SHA: $(git rev-parse HEAD)"
-          echo "For Stage B, copy the exact final SHA from the completed Stage A run."
+          echo "For Stage B, copy the exact final SHA from the successful Stage A run."
