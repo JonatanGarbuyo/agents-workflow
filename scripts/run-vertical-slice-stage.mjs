@@ -44,13 +44,32 @@ if (stage === "A") {
   const names = await handoffs();
   const stageAHandoffs = [];
   for (const name of names) {
-    const record = JSON.parse(await readFile(join(handoffDir, name), "utf8"));
-    if (record.stage === "A") stageAHandoffs.push(record);
+    let record;
+    try {
+      record = JSON.parse(await readFile(join(handoffDir, name), "utf8"));
+    } catch {
+      fail(`handoff ${name} is not valid JSON`);
+    }
+    if (record.stage === "A") stageAHandoffs.push({ name, record });
   }
   if (stageAHandoffs.length !== 1) fail(`expected exactly one Stage A handoff, found ${stageAHandoffs.length}`);
-  const prior = stageAHandoffs[0];
-  if (prior.outcome !== "progress" || prior.end_commit !== git("log", "-1", "--format=%H", prior.end_commit)) {
-    fail("Stage A handoff does not reference a real commit");
+  const { name, record: prior } = stageAHandoffs[0];
+  if (
+    prior.schema_version !== 1 ||
+    prior.runner !== "actions" ||
+    prior.issue_url !== issueUrl ||
+    prior.outcome !== "progress" ||
+    !prior.run_id ||
+    String(prior.run_id) === String(runId) ||
+    !/^[0-9a-f]{40}$/.test(prior.end_commit)
+  ) {
+    fail(`Stage A handoff ${name} has inconsistent metadata`);
+  }
+  try {
+    git("cat-file", "-e", `${prior.end_commit}^{commit}`);
+    git("merge-base", "--is-ancestor", prior.end_commit, head);
+  } catch {
+    fail("Stage A handoff must reference a real commit in the current checkpoint history");
   }
 }
 
