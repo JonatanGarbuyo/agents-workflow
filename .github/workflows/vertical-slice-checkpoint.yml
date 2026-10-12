@@ -47,9 +47,12 @@ jobs:
       - name: Run stage and record durable checkpoint
         env:
           TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+          STAGE: ${{ inputs.stage }}
+          EXPECTED_CHECKPOINT: ${{ inputs.expected_checkpoint }}
         run: |
-          if [ "${{ inputs.stage }}" = "B" ]; then
-            node scripts/run-vertical-slice-stage.mjs B "${{ inputs.expected_checkpoint }}"
+          if [ "$STAGE" = "B" ]; then
+            node scripts/run-vertical-slice-stage.mjs B "$EXPECTED_CHECKPOINT"
+            node scripts/validate-runtime-checkpoint.mjs
           else
             node scripts/run-vertical-slice-stage.mjs A
           fi
