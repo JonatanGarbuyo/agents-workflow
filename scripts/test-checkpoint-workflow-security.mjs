@@ -11,6 +11,9 @@ assert.match(workflow, /startsWith\(github\.event\.comment\.body, '\/checkpoint 
 assert.match(workflow, /github\.ref == format\('refs\/heads\/\{0\}', github\.event\.repository\.default_branch\)/, "workflow must run from the default branch");
 assert.match(workflow, /name: Check out trusted runner from default branch[\s\S]*?ref: \$\{\{ github\.event\.repository\.default_branch \}\}[\s\S]*?persist-credentials: false/, "trusted runner checkout must use default branch without persisting credentials");
 assert.match(workflow, /name: Check out task branch as data\/worktree[\s\S]*?ref: \$\{\{ steps\.command\.outputs\.task_branch \}\}[\s\S]*?path: task/, "task branch must be isolated in task/ and treated as data");
+assert.match(workflow, /uses: actions\/checkout@[0-9a-f]{40}/, "checkout action must be pinned to a full commit SHA");
+assert.match(workflow, /uses: actions\/setup-node@[0-9a-f]{40}/, "setup-node action must be pinned to a full commit SHA");
+assert.doesNotMatch(workflow, /uses: actions\/(checkout|setup-node)@v[0-9]+/, "mutable action tags are not allowed in the privileged workflow");
 assert.match(workflow, /cd task && node \.\.\/scripts\/run-vertical-slice-stage\.mjs/, "runner must execute from trusted checkout, not task branch");
 assert.match(workflow, /cd task && node \.\.\/scripts\/validate-runtime-checkpoint\.mjs/, "validator must execute from trusted checkout, not task branch");
 assert.match(workflow, /git push origin "HEAD:refs\/heads\/\$TASK_BRANCH"/, "push target must be the parsed task branch");
