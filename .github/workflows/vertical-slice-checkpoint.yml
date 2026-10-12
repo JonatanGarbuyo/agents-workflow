@@ -1,0 +1,63 @@
+name: Run portable vertical-slice checkpoint
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Stage to execute in this fresh run
+        type: choice
+        required: true
+        options:
+          - A
+          - B
+      expected_checkpoint:
+        description: Required for Stage B; exact final branch SHA printed by Stage A
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+# One writer per selected task branch. Never cancel a running checkpoint writer.
+concurrency:
+  group: vertical-slice-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checkpoint:
+    if: startsWith(github.ref_name, 'test/vertical-slice-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out selected task branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configure commit identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run stage and record durable checkpoint
+        env:
+          TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+        run: |
+          if [ "${{ inputs.stage }}" = "B" ]; then
+            node scripts/run-vertical-slice-stage.mjs B "${{ inputs.expected_checkpoint }}"
+          else
+            node scripts/run-vertical-slice-stage.mjs A
+          fi
+
+      - name: Push checkpoint and handoff commits
+        run: git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Print final checkpoint reference
+        run: |
+          echo "Final checkpoint SHA: $(git rev-parse HEAD)"
+          echo "For Stage B, copy the exact final SHA from the completed Stage A run."
