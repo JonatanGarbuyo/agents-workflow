@@ -69,4 +69,4 @@ The runtime Actions adapter now lives in `.github/workflows/vertical-slice-check
 
 See [runtime checkpoint test instructions](runtime-checkpoint-test.md). GitHub requires a `workflow_dispatch` workflow to exist on the default branch before it can be run from the Actions UI, so the experiment cannot execute while this workflow exists only on the bootstrap PR branch. This is a sequencing constraint, not evidence of success.
 
-Current evidence: the fixture/schema validator has passed CI. The runtime checkpoint workflow has not yet been executed, and Actions/OpenCode interoperability remains unproven.
+Current evidence: fixture/schema validation and automated runtime-runner tests pass in CI. The runtime-runner tests create temporary Git repositories and exercise fresh-process resume, stale SHA rejection, repeated Stage B rejection, missing handoff rejection, and missing Stage A marker rejection. The manually dispatched GitHub Actions workflow has not yet been executed against a disposable remote branch, and Actions/OpenCode interoperability remains unproven.
