@@ -61,3 +61,12 @@ Live model calls, multi-agent execution, dynamic model routing/token accounting,
 4. Document the equivalent OpenCode entry point.
 5. Test both cross-runner directions and record evidence.
 6. Decide which further orchestration features are justified only after the slice passes.
+
+
+## Current implementation status
+
+The runtime Actions adapter now lives in `.github/workflows/vertical-slice-checkpoint.yml`, with shared stage logic in `scripts/run-vertical-slice-stage.mjs` and final-state validation in `scripts/validate-runtime-checkpoint.mjs`. The manual workflow creates durable fixture commits and append-only handoffs on a disposable `test/vertical-slice-*` branch; Stage B requires the exact checkpoint SHA from Stage A and rejects stale or missing state.
+
+See [runtime checkpoint test instructions](runtime-checkpoint-test.md). GitHub requires a `workflow_dispatch` workflow to exist on the default branch before it can be run from the Actions UI, so the experiment cannot execute while this workflow exists only on the bootstrap PR branch. This is a sequencing constraint, not evidence of success.
+
+Current evidence: the fixture/schema validator has passed CI. The runtime checkpoint workflow has not yet been executed, and Actions/OpenCode interoperability remains unproven.
