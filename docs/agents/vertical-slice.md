@@ -1,80 +1,63 @@
 # Minimal portable workflow vertical slice
 
-Status: proposed design. This is deliberately smaller than a general-purpose multi-agent framework.
+Status: proposed design with deterministic fixtures and a starter validator.
 
 ## Objective
 
-Prove that one task can be started, checkpointed, interrupted, and resumed by a fresh execution using only durable GitHub/repository state. The task must be resumable across GitHub Actions and OpenCode without changing its contract.
+Prove a task can be checkpointed and resumed by a fresh execution using durable GitHub/repository state, with the same contract across GitHub Actions and OpenCode.
 
 ## Scenario
 
-Use a disposable GitHub Issue with two acceptance criteria and a tiny text fixture.
+- **Stage A:** add the first marker to a tiny fixture, validate it, commit the change and a unique handoff, then stop before completion.
+- **Stage B:** start without Stage A conversation/session; read issue, branch, commit, checks, and handoff; confirm the checkpoint; add the second marker; validate and record a new handoff.
+- **Cross-runner acceptance:** run A in Actions and B in OpenCode, then reverse the direction. Restarting from scratch and ignoring Stage A's checkpoint is a failure.
 
-- **Stage A:** read the issue and repository state; add the first marker to the fixture; run a deterministic check; commit the change and a unique handoff; stop before adding the second marker.
-- **Stage B:** start with no Stage A conversation/session; read the issue, branch, commit, checks, and latest handoff; verify the first marker already exists; add the second marker; run the deterministic check; commit a new handoff and report completion.
-- **Cross-runner test:** when both adapters exist, run A in Actions and B in OpenCode, then reverse the direction. A restart that discards the checkpoint and repeats Stage A is a failure.
-
-Use a deterministic fixture first, not a live model API call. This isolates persistence and recovery from provider behavior. Model delegation and provider adapters come later.
+The first test is deterministic and does not call a model API. This separates state recovery from provider behavior.
 
 ## Components
 
-1. **Issue contract:** objective, acceptance criteria, allowed paths, dependencies, and staged completion condition.
-2. **Repository state:** branch and commits are the durable checkpoint. No Actions artifact or local session is required for progress.
-3. **Handoff schema:** one small record per execution, committed with the relevant checkpoint; link issue, commit, checks, outcome, and next action.
-4. **Shared validation:** one script/test verifies fixture stages and required handoff fields. Both runners invoke the same validation.
-5. **Runner adapters:** minimal Actions entry point and documented OpenCode entry point. Triggers and environment setup may differ; task logic must not.
+1. Issue: objective, acceptance criteria, allowed paths, and staged completion condition.
+2. Branch and commits: durable checkpoint; no Actions-only artifact or local session is required.
+3. Handoff: [JSON Schema v1](../../schemas/agent-handoff.schema.json); example records live in `examples/vertical-slice/`.
+4. Shared validation: `node scripts/validate-vertical-slice.mjs --stage A`, `--stage B`, or `--self-test`.
+5. Runner adapters: thin Actions and OpenCode entry points call the same validation and task procedure.
 
-Do not build model routing, multi-agent graphs, provider layers, dashboards, or generalized queues in this slice.
+The validator uses Node.js built-ins only. It checks the example handoff fields and stage markers; it is not yet a complete JSON Schema validator or proof of cross-runner portability.
 
-## State flow
+## Handoff and recovery
 
-Ready issue -> Stage A starts from GitHub state -> partial change + handoff committed -> execution stops -> fresh Stage B reads issue/branch/commit/checks/handoff -> verifies checkpoint and continues -> completion + new handoff committed -> deterministic acceptance check passes.
+Write a unique JSON file per execution under `agent-handoffs/<issue-number>/<UTC-timestamp>-<runner>-<run-id>.json`. Never overwrite earlier handoffs. Handoffs are reports, not authoritative status; current issue, PR, commit, and check state wins.
 
-A task is not complete until the final marker and checks pass. Handoffs are reports, not authoritative status; current issue, PR, commit, and check state wins if they disagree.
-
-## Handoff
-
-Create a unique file per execution under `agent-handoffs/<issue-number>/<UTC-timestamp>-<runner>-<run-id>.md`. Include issue URL, stage, runner/run ID, starting and ending commit, outcome, changed files, exact validation command/result, checkpoint observed at start, and next action. Never overwrite Stage A's record during Stage B.
-
-## Concurrency and stale state
-
-For the first slice, allow one active writer per task branch. Actions should use a concurrency group keyed by task ID and queue or cancel overlapping runs according to a documented policy. OpenCode must inspect the current branch/PR and latest commit before writing.
-
-Before committing, verify the expected base commit is still the branch tip. If it changed, stop and reload issue, branch, PR, checks, and handoffs before reconciling. Do not reset or overwrite another execution's unobserved work. This is a lightweight guard, not a distributed-lock guarantee; document its limits.
+Before committing, confirm the expected base commit is still the branch tip. If it changed, stop and reload the issue, PR, checks, and handoffs before reconciling. Actions should use a concurrency group keyed by task ID. The first slice permits one active writer per task branch and does not claim to provide a distributed lock.
 
 ## Minimum permissions
 
 - Read issue, PR, branch, commit, and check state.
 - Write only the task branch and handoff records; open/update a PR if needed.
-- No permission to change repository rules, secrets, environments, or workflow permissions.
-- No automatic merge in this slice.
-- Do not expose provider secrets to untrusted PR code. The deterministic test requires no provider secret.
+- No ability to change repository protections, secrets, environments, or workflow permissions.
+- No automatic merge. The deterministic test needs no provider secret.
 
 ## Pass/fail criteria
 
-Pass only if:
-
-1. Stage A leaves the first marker, a commit, a unique handoff, and a passing deterministic check.
-2. Stage B has no Stage A transcript and discovers the checkpoint from GitHub/repository state.
-3. Stage B neither repeats nor erases Stage A's change and adds the second marker.
+1. Stage A leaves its marker, commit, handoff, and passing deterministic check.
+2. A fresh Stage B execution discovers the checkpoint without the previous transcript.
+3. Stage B preserves Stage A's work and adds the second marker.
 4. Both handoffs remain and reference real commits.
-5. Final validation verifies both markers and required handoff fields.
-6. A stale handoff cannot override newer branch/commit/check state.
-7. An overlapping or stale-base run stops safely rather than overwriting progress.
-8. Both cross-runner directions pass before portability is declared proven.
+5. Validation accepts valid fixtures and rejects missing fields, stale handoffs, and incomplete final state.
+6. Stale-base or overlapping runs stop safely rather than overwriting progress.
+7. Both cross-runner directions pass before portability is declared proven.
 
-Until both runners are tested, cross-runner acceptance remains pending; unit tests alone do not prove portability.
+Until Actions/OpenCode cross-runner tests run, portability remains unproven.
 
 ## Out of scope
 
-Live model invocation, multi-agent delegation execution, dynamic model routing/token accounting, generalized retry orchestration, multiple concurrent writers, automatic merging, and enabling GitHub Template Repository.
+Live model calls, multi-agent execution, dynamic model routing/token accounting, generalized retry orchestration, multiple concurrent writers, automatic merging, and enabling GitHub Template Repository.
 
 ## Implementation order
 
-1. Review and accept the task contract and scenario.
-2. Define and validate the handoff schema with a fixture.
-3. Implement shared deterministic checkpoint validation.
-4. Add the smallest Actions adapter.
-5. Document the equivalent OpenCode entry point using the same contract.
-6. Run cross-runner tests and record evidence in GitHub.
-7. Only after the slice passes, decide which orchestration capabilities are justified.
+1. Review the task contract and this scenario.
+2. Review the handoff schema and run `node scripts/validate-vertical-slice.mjs --self-test`.
+3. Add the smallest Actions adapter.
+4. Document the equivalent OpenCode entry point.
+5. Test both cross-runner directions and record evidence.
+6. Decide which further orchestration features are justified only after the slice passes.
