@@ -32,7 +32,7 @@ export function parseCheckpointCommand(body) {
   return { stage, taskBranch, expectedCheckpoint };
 }
 
-if (process.env.GITHUB_OUTPUT) {
+if (process.env.GITHUB_OUTPUT && process.env.COMMENT_BODY !== undefined) {
   const { stage, taskBranch, expectedCheckpoint } = parseCheckpointCommand(process.env.COMMENT_BODY ?? "");
   await appendFile(
     process.env.GITHUB_OUTPUT,
