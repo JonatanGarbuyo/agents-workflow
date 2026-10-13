@@ -56,7 +56,7 @@ if (branchName === "main" || branchName === "bootstrap/reusable-agent-workflow")
 
 const head = git("rev-parse", "HEAD");
 if (stage === "A") {
-  const names = await handoffs().catch(() => []);
+  const names = await handoffs();
   const fixture = await readFile(fixturePath, "utf8");
   if (names.length || fixture.includes("stage-a-complete") || fixture.includes("stage-b-complete")) {
     fail("Stage A requires a pristine fixture and no prior handoffs");
