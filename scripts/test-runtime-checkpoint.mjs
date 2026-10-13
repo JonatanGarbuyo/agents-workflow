@@ -107,6 +107,16 @@ try {
   git(noMarker, "commit", "-m", "test: remove Stage A marker");
   expectRejected(runStage(noMarker, "B", "401", git(noMarker, "rev-parse", "HEAD")), "missing Stage A marker");
 
+  // Stage A must fail closed if an existing handoff path is a symlink.
+  const symlinkHandoff = await setup();
+  workdirs.push(symlinkHandoff);
+  await mkdir(join(symlinkHandoff, "agent-handoffs/6"), { recursive: true });
+  const handoffTarget = join(symlinkHandoff, "outside-handoff.json");
+  await writeFile(handoffTarget, "{}\\n");
+  await symlink(handoffTarget, join(symlinkHandoff, "agent-handoffs/6/attacker.json"));
+  expectRejected(runStage(symlinkHandoff, "A", "375"), "symlinked pre-existing handoff");
+  assert.equal(await readFile(handoffTarget, "utf8"), "{}\\n", "symlinked handoff target must not be modified");
+
   process.stdout.write("Runtime checkpoint tests passed: fresh-run resume, stale SHA, repeated Stage B, missing handoff, missing marker, and symlink rejection.\n");
 } finally {
   await Promise.all(workdirs.map((cwd) => rm(cwd, { recursive: true, force: true })));
