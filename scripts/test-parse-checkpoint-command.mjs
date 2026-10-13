@@ -19,6 +19,8 @@ assert.deepEqual(stageB, {
 
 for (const invalid of [
   "/checkpoint stage=A branch=main",
+  "/checkpoint stage=A branch=test/vertical-slice-other",
+  "/checkpoint stage=A branch=test/vertical-slice-7",
   "/checkpoint stage=A branch=test/vertical-slice-6 expected=" + sha,
   "/checkpoint stage=B branch=test/vertical-slice-6",
   "/checkpoint stage=B branch=test/vertical-slice-6 expected=deadbeef",
