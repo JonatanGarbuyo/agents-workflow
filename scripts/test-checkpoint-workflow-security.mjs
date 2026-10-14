@@ -18,7 +18,7 @@ assert.match(workflow, /name: Check out task branch as data\/worktree[\s\S]*?per
 assert.match(workflow, /name: Push checkpoint and handoff commits[\s\S]*?GITHUB_TOKEN: \$\{\{ github\.token \}\}[\s\S]*?git -c "http\.https:\/\/github\.com\/\.extraheader=AUTHORIZATION: basic \$AUTH_HEADER" push origin "HEAD:refs\/heads\/\$TASK_BRANCH"/, "write token must be used only for a fixed-ref push and not stored in git config");
 assert.match(workflow, /name: Parse and validate checkpoint command[\s\S]*?node scripts\/parse-checkpoint-command\.mjs[\s\S]*?name: Check out task branch/, "the command must be parsed by trusted code before its branch value is used");
 assert.match(workflow, /persist-credentials: false/, "the trusted checkout must never persist the write credential");
-assert.match(workflow, /git push origin "HEAD:refs\/heads\/\$TASK_BRANCH"/, "the only push must target the parsed task branch, never a caller-provided refspec");
+assert.match(workflow, /git -c "http\.https:\/\/github\.com\/\.extraheader=AUTHORIZATION: basic \$AUTH_HEADER" push origin "HEAD:refs\/heads\/\$TASK_BRANCH"/, "the only push must target the parsed task branch with an ephemeral credential");
 assert.ok(parser.includes("const BRANCH_PATTERN = /^test\\/vertical-slice-6$/;"), "the trusted parser must allow only the single disposable pilot branch");
 assert.ok(parser.includes("branch=(test\\/vertical-slice-6)"), "the command grammar must reject arbitrary task branches");
 assert.match(workflow, /uses: actions\/checkout@[0-9a-f]{40}/, "checkout action must be pinned to a full commit SHA");
