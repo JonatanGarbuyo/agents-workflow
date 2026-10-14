@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: vertical-slice-checkpoint-6
@@ -50,6 +51,34 @@ jobs:
         with:
           node-version: 22
 
+      - name: Parse Stage A artifact reference
+        id: stage_a
+        if: steps.command.outputs.stage == 'B'
+        env:
+          TASK_WORKTREE: task
+          TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+        run: node scripts/parse-stage-a-attestation.mjs
+
+      - name: Download immutable Stage A attestation
+        if: steps.command.outputs.stage == 'B'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: checkpoint-stage-a-${{ steps.stage_a.outputs.stage_a_run_id }}
+          run-id: ${{ steps.stage_a.outputs.stage_a_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/stage-a-attestation-download
+
+      - name: Verify Stage A provenance against immutable artifact
+        if: steps.command.outputs.stage == 'B'
+        env:
+          TASK_WORKTREE: task
+          TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
+          TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+          EXPECTED_CHECKPOINT: ${{ steps.command.outputs.expected_checkpoint }}
+          ATTESTATION_PATH: ${{ runner.temp }}/stage-a-attestation-download/attestation.json
+        run: node scripts/verify-stage-a-attestation.mjs
+
       - name: Configure task-branch commit identity
         working-directory: task
         run: |
@@ -80,8 +109,26 @@ jobs:
           AUTH_HEADER="$(printf "x-access-token:%s" "$GITHUB_TOKEN" | base64 -w0)"
           git -c core.hooksPath=/dev/null -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH_HEADER" push origin "HEAD:refs/heads/$TASK_BRANCH"
 
+      - name: Create Stage A attestation outside task branch
+        if: steps.command.outputs.stage == 'A'
+        env:
+          TASK_WORKTREE: task
+          TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
+          TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+          ATTESTATION_OUTPUT: ${{ runner.temp }}/stage-a-attestation/attestation.json
+        run: node scripts/create-stage-a-attestation.mjs
+
       - name: Print final checkpoint reference
         working-directory: task
         run: |
           echo "Final checkpoint SHA: $(git rev-parse HEAD)"
           echo "For Stage B, copy the exact final SHA from the successful Stage A run."
+
+      - name: Upload immutable Stage A attestation
+        if: steps.command.outputs.stage == 'A'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: checkpoint-stage-a-${{ github.run_id }}
+          path: ${{ runner.temp }}/stage-a-attestation/attestation.json
+          if-no-files-found: error
+          retention-days: 7
