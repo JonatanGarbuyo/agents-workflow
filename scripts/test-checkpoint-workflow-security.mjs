@@ -5,6 +5,9 @@ import { readFile } from "node:fs/promises";
 const workflow = await readFile(new URL("../.github/workflows/vertical-slice-checkpoint.yml", import.meta.url), "utf8");
 const runner = await readFile(new URL("./run-vertical-slice-stage.mjs", import.meta.url), "utf8");
 const runtimeTest = await readFile(new URL("./test-runtime-checkpoint.mjs", import.meta.url), "utf8");
+const createAttestation = await readFile(new URL("./create-stage-a-attestation.mjs", import.meta.url), "utf8");
+const verifyAttestation = await readFile(new URL("./verify-stage-a-attestation.mjs", import.meta.url), "utf8");
+const parseAttestation = await readFile(new URL("./parse-stage-a-attestation.mjs", import.meta.url), "utf8");
 const parser = await readFile(new URL("./parse-checkpoint-command.mjs", import.meta.url), "utf8");
 
 assert.match(workflow, /issue_comment:[\s\S]*?types: \[created\]/, "privileged checkpoint must be triggered by issue comments, not a caller-selected workflow ref");
