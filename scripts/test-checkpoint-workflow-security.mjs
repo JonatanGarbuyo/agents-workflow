@@ -8,6 +8,7 @@ const runtimeTest = await readFile(new URL("./test-runtime-checkpoint.mjs", impo
 const createAttestation = await readFile(new URL("./create-stage-a-attestation.mjs", import.meta.url), "utf8");
 const verifyAttestation = await readFile(new URL("./verify-stage-a-attestation.mjs", import.meta.url), "utf8");
 const parseAttestation = await readFile(new URL("./parse-stage-a-attestation.mjs", import.meta.url), "utf8");
+const runProvenance = await readFile(new URL("./validate-stage-a-run.mjs", import.meta.url), "utf8");
 const parser = await readFile(new URL("./parse-checkpoint-command.mjs", import.meta.url), "utf8");
 
 assert.match(workflow, /issue_comment:[\s\S]*?types: \[created\]/, "privileged checkpoint must be triggered by issue comments, not a caller-selected workflow ref");
@@ -43,10 +44,21 @@ const downloadStepStart = workflow.indexOf("      - name: Download immutable Sta
 const downloadStepEnd = workflow.indexOf("      - name: Verify Stage A provenance against immutable artifact", downloadStepStart);
 assert.ok(downloadStepStart >= 0 && downloadStepEnd > downloadStepStart, "artifact download step must have a clear boundary");
 const artifactDownloadStep = workflow.slice(downloadStepStart, downloadStepEnd);
-const nonCredentialedWorkflow = nonPushWorkflow.replace(artifactDownloadStep, "");
+const validationStepStart = workflow.indexOf("      - name: Validate Stage A run provenance");
+const validationStepEnd = workflow.indexOf("      - name: Download immutable Stage A attestation", validationStepStart);
+assert.ok(validationStepStart >= 0 && validationStepEnd > validationStepStart, "Stage A run provenance must be validated before artifact download");
+const validationStep = workflow.slice(validationStepStart, validationStepEnd);
+const nonCredentialedWorkflow = nonPushWorkflow.replace(artifactDownloadStep, "").replace(validationStep, "");
 assert.match(pushStep, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/, "the final push step must receive the write token explicitly");
-assert.match(artifactDownloadStep, /github-token: \$\{\{ github\.token \}\}/, "only the pinned artifact downloader may receive the token for actions:read");
-assert.doesNotMatch(nonCredentialedWorkflow, /GITHUB_TOKEN|github\.token/, "no scripts or unrelated workflow steps may receive the token");
+assert.match(validationStep, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/, "the trusted run-metadata validator needs a token to query the Actions API");
+assert.match(validationStep, /run: node scripts\/validate-stage-a-run\.mjs/, "run metadata must be validated by trusted code before downloading artifacts");
+assert.match(artifactDownloadStep, /github-token: \$\{\{ github\.token \}\}/, "the pinned artifact downloader needs the token for actions:read");
+assert.doesNotMatch(nonCredentialedWorkflow, /GITHUB_TOKEN|github\.token/, "no unrelated workflow steps may receive the token");
+assert.match(runProvenance, /run\.event, "issue_comment"/, "Stage A run validator must reject artifacts from other event types");
+assert.match(runProvenance, /run\.path, workflowPath/, "Stage A run validator must bind artifacts to the trusted workflow path");
+assert.match(runProvenance, /run\.conclusion, "success"/, "Stage A run validator must require a successful run");
+assert.match(runProvenance, /run\.actor\?\.login, trustedActor/, "Stage A run validator must require the trusted actor");
+assert.match(workflow, /name: Validate Stage A run provenance[\s\S]*?node scripts\/validate-stage-a-run\.mjs[\s\S]*?name: Download immutable Stage A attestation/, "run provenance check must precede artifact download");
 assert.doesNotMatch(workflow, /(?:node|npm|npx)\s+(?:\.\/)?task\//, "task-branch scripts or package commands must not be executed by the privileged job");
 
 assert.match(workflow, /permissions:[\s\S]*?contents: write[\s\S]*?actions: read/, "artifact-based provenance requires explicit Actions read permission");
