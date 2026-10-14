@@ -27,5 +27,13 @@ assert.doesNotMatch(workflow, /uses: actions\/(checkout|setup-node)@v[0-9]+/, "m
 assert.match(workflow, /cd task && node \.\.\/scripts\/run-vertical-slice-stage\.mjs/, "runner must execute from trusted checkout, not task branch");
 assert.match(workflow, /cd task && node \.\.\/scripts\/validate-runtime-checkpoint\.mjs/, "validator must execute from trusted checkout, not task branch");
 assert.doesNotMatch(workflow, /node task\/scripts\/(run-vertical-slice-stage|validate-runtime-checkpoint)\.mjs/, "must not execute scripts supplied by task branch");
+const pushStepStart = workflow.indexOf("      - name: Push checkpoint and handoff commits");
+const pushStepEnd = workflow.indexOf("      - name: Print final checkpoint reference", pushStepStart);
+assert.ok(pushStepStart >= 0 && pushStepEnd > pushStepStart, "the credentialed push step must have a clear boundary");
+const pushStep = workflow.slice(pushStepStart, pushStepEnd);
+const nonPushWorkflow = workflow.slice(0, pushStepStart) + workflow.slice(pushStepEnd);
+assert.match(pushStep, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/, "the final push step must receive the write token explicitly");
+assert.doesNotMatch(nonPushWorkflow, /GITHUB_TOKEN|github\.token/, "no other workflow step may expose the write token");
+assert.doesNotMatch(workflow, /(?:node|npm|npx)\s+(?:\.\/)?task\//, "task-branch scripts or package commands must not be executed by the privileged job");
 
 process.stdout.write("Checkpoint workflow security contract passed: trusted issue-comment trigger and runner/task separation.\n");
