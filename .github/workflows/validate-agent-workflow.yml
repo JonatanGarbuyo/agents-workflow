@@ -37,6 +37,8 @@ jobs:
           node --check scripts/validate-runtime-checkpoint.mjs
           node --check scripts/test-runtime-checkpoint.mjs
           node --check scripts/parse-checkpoint-command.mjs
+          node --check scripts/validate-stage-a-run.mjs
+          node --check scripts/test-stage-a-run.mjs
           node --check scripts/test-parse-checkpoint-command.mjs
 
       - name: Test runtime checkpoint resume and rejection paths
@@ -44,6 +46,9 @@ jobs:
 
       - name: Test checkpoint command parser
         run: node scripts/test-parse-checkpoint-command.mjs
+
+      - name: Test Stage A workflow run provenance
+        run: node scripts/test-stage-a-run.mjs
 
       - name: Test checkpoint workflow trust boundary
         run: node scripts/test-checkpoint-workflow-security.mjs
