@@ -1,0 +1,54 @@
+name: Validate agent workflow fixtures
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "bootstrap/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-handoff-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Validate stage A fixture
+        run: node scripts/validate-vertical-slice.mjs --stage A
+
+      - name: Validate stage B fixture
+        run: node scripts/validate-vertical-slice.mjs --stage B
+
+      - name: Run validator negative and positive tests
+        run: node scripts/validate-vertical-slice.mjs --self-test
+
+      - name: Check runtime checkpoint scripts parse
+        run: |
+          node --check scripts/run-vertical-slice-stage.mjs
+          node --check scripts/validate-runtime-checkpoint.mjs
+          node --check scripts/test-runtime-checkpoint.mjs
+          node --check scripts/parse-checkpoint-command.mjs
+          node --check scripts/validate-stage-a-run.mjs
+          node --check scripts/test-stage-a-run.mjs
+          node --check scripts/test-parse-checkpoint-command.mjs
+
+      - name: Test runtime checkpoint resume and rejection paths
+        run: node scripts/test-runtime-checkpoint.mjs
+
+      - name: Test checkpoint command parser
+        run: node scripts/test-parse-checkpoint-command.mjs
+
+      - name: Test Stage A workflow run provenance
+        run: node scripts/test-stage-a-run.mjs
+
+      - name: Test checkpoint workflow trust boundary
+        run: node scripts/test-checkpoint-workflow-security.mjs

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/JonatanGarbuyo/agents-workflow/blob/main/schemas/agent-handoff.schema.json",
+  "title": "Agent execution handoff",
+  "description": "Durable report for one agent execution. GitHub issue, PR, commits, and checks remain the source of truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "issue_url",
+    "stage",
+    "runner",
+    "run_id",
+    "started_at",
+    "outcome",
+    "start_commit",
+    "end_commit",
+    "changed_files",
+    "validation",
+    "checkpoint_observed",
+    "next_action"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "issue_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://github\\.com/.+/issues/[0-9]+$"
+    },
+    "pull_request_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri"
+    },
+    "stage": {
+      "enum": [
+        "A",
+        "B"
+      ]
+    },
+    "runner": {
+      "enum": [
+        "actions",
+        "opencode"
+      ]
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "outcome": {
+      "enum": [
+        "progress",
+        "blocked",
+        "complete"
+      ]
+    },
+    "start_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "end_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "result"
+      ],
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "enum": [
+            "passed",
+            "failed",
+            "not_run"
+          ]
+        }
+      }
+    },
+    "checkpoint_observed": {
+      "enum": [
+        "none",
+        "stage-a-complete",
+        "stage-b-complete"
+      ]
+    },
+    "next_action": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

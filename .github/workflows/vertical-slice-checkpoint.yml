@@ -1,0 +1,145 @@
+name: Run portable vertical-slice checkpoint
+
+# issue_comment workflows run from the default branch. Unlike workflow_dispatch,
+# the caller cannot choose an untrusted branch version of this privileged workflow.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: vertical-slice-checkpoint-6
+  cancel-in-progress: false
+
+jobs:
+  checkpoint:
+    if: >-
+      github.event.issue.number == 6 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.event.comment.user.login == 'JonatanGarbuyo' &&
+      startsWith(github.event.comment.body, '/checkpoint ') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out trusted runner from default branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Parse and validate checkpoint command
+        id: command
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: node scripts/parse-checkpoint-command.mjs
+
+      - name: Check out task branch as data/worktree
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.command.outputs.task_branch }}
+          path: task
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Parse Stage A artifact reference
+        id: stage_a
+        if: steps.command.outputs.stage == 'B'
+        env:
+          TASK_WORKTREE: task
+          TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+        run: node scripts/parse-stage-a-attestation.mjs
+
+      - name: Validate Stage A run provenance
+        id: validated_stage_a
+        if: steps.command.outputs.stage == 'B'
+        env:
+          STAGE_A_RUN_ID: ${{ steps.stage_a.outputs.stage_a_run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/validate-stage-a-run.mjs
+
+      - name: Download immutable Stage A attestation
+        if: steps.command.outputs.stage == 'B'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: checkpoint-stage-a-${{ steps.validated_stage_a.outputs.validated_run_id }}
+          run-id: ${{ steps.validated_stage_a.outputs.validated_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/stage-a-attestation-download
+
+      - name: Verify Stage A provenance against immutable artifact
+        if: steps.command.outputs.stage == 'B'
+        env:
+          TASK_WORKTREE: task
+          TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
+          TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+          EXPECTED_CHECKPOINT: ${{ steps.command.outputs.expected_checkpoint }}
+          ATTESTATION_PATH: ${{ runner.temp }}/stage-a-attestation-download/attestation.json
+        run: node scripts/verify-stage-a-attestation.mjs
+
+      - name: Configure task-branch commit identity
+        working-directory: task
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run trusted stage runner and record durable checkpoint
+        env:
+          TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+          TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
+          STAGE: ${{ steps.command.outputs.stage }}
+          EXPECTED_CHECKPOINT: ${{ steps.command.outputs.expected_checkpoint }}
+        run: |
+          if [ "$STAGE" = "B" ]; then
+            (cd task && node ../scripts/run-vertical-slice-stage.mjs B "$EXPECTED_CHECKPOINT")
+            (cd task && node ../scripts/validate-runtime-checkpoint.mjs)
+          else
+            (cd task && node ../scripts/run-vertical-slice-stage.mjs A)
+          fi
+
+      - name: Push checkpoint and handoff commits
+        working-directory: task
+        env:
+          TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set +x
+          AUTH_HEADER="$(printf "x-access-token:%s" "$GITHUB_TOKEN" | base64 -w0)"
+          git -c core.hooksPath=/dev/null -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH_HEADER" push origin "HEAD:refs/heads/$TASK_BRANCH"
+
+      - name: Create Stage A attestation outside task branch
+        if: steps.command.outputs.stage == 'A'
+        env:
+          TASK_WORKTREE: task
+          TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
+          TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
+          ATTESTATION_OUTPUT: ${{ runner.temp }}/stage-a-attestation/attestation.json
+        run: node scripts/create-stage-a-attestation.mjs
+
+      - name: Print final checkpoint reference
+        working-directory: task
+        run: |
+          echo "Final checkpoint SHA: $(git rev-parse HEAD)"
+          echo "For Stage B, copy the exact final SHA from the successful Stage A run."
+
+      - name: Upload immutable Stage A attestation
+        if: steps.command.outputs.stage == 'A'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: checkpoint-stage-a-${{ github.run_id }}
+          path: ${{ runner.temp }}/stage-a-attestation/attestation.json
+          if-no-files-found: error
+          retention-days: 90

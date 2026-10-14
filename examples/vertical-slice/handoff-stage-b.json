@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "issue_url": "https://github.com/JonatanGarbuyo/agents-workflow/issues/5",
+  "pull_request_url": "https://github.com/JonatanGarbuyo/agents-workflow/pull/2",
+  "stage": "B",
+  "runner": "opencode",
+  "run_id": "fixture-stage-b",
+  "started_at": "2026-10-12T16:10:00Z",
+  "outcome": "complete",
+  "start_commit": "448d984",
+  "end_commit": "c4dd3c4",
+  "changed_files": ["examples/vertical-slice/fixture-stage-b.txt"],
+  "validation": {
+    "command": "node scripts/validate-vertical-slice.mjs --stage B",
+    "result": "passed"
+  },
+  "checkpoint_observed": "stage-a-complete",
+  "next_action": "No further action; verify PR checks before merge."
+}
