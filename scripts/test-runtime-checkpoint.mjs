@@ -71,6 +71,12 @@ try {
   assert.equal(resumed.status, 0, `fresh Stage B should resume successfully\n${resumed.stderr}`);
   const validation = spawnSync(process.execPath, ["scripts/validate-runtime-checkpoint.mjs"], { cwd: happy, encoding: "utf8" });
   assert.equal(validation.status, 0, `final checkpoint state should validate\n${validation.stderr}`);
+  const handoffNames = (await readdir(join(happy, "agent-handoffs/6"))).filter((name) => name.endsWith(".json"));
+  const handoffs = await Promise.all(handoffNames.map(async (name) => JSON.parse(await readFile(join(happy, "agent-handoffs/6", name), "utf8"))));
+  for (const handoff of handoffs) {
+    assert.match(handoff.validation.command, /self-checks only; not final-state validation/, "handoff must not overstate its validation scope");
+    assert.equal(handoff.validation.result, "passed");
+  }
   expectRejected(runStage(happy, "B", "202", git(happy, "rev-parse", "HEAD")), "repeated Stage B");
 
   // Missing handoff: preserve the Stage A marker but remove its report and commit that state.
