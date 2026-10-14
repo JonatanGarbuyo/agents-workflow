@@ -131,4 +131,4 @@ jobs:
           name: checkpoint-stage-a-${{ github.run_id }}
           path: ${{ runner.temp }}/stage-a-attestation/attestation.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
