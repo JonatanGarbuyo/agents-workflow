@@ -42,7 +42,7 @@ jobs:
         with:
           ref: ${{ steps.command.outputs.task_branch }}
           path: task
-          persist-credentials: true
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -74,8 +74,11 @@ jobs:
         working-directory: task
         env:
           TASK_BRANCH: ${{ steps.command.outputs.task_branch }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          git push origin "HEAD:refs/heads/$TASK_BRANCH"
+          set +x
+          AUTH_HEADER="$(printf "x-access-token:%s" "$GITHUB_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH_HEADER" push origin "HEAD:refs/heads/$TASK_BRANCH"
 
       - name: Print final checkpoint reference
         working-directory: task
