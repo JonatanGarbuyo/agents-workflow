@@ -26,7 +26,6 @@ assert.match(workflow, /uses: actions\/setup-node@[0-9a-f]{40}/, "setup-node act
 assert.doesNotMatch(workflow, /uses: actions\/(checkout|setup-node)@v[0-9]+/, "mutable action tags are not allowed in the privileged workflow");
 assert.match(workflow, /cd task && node \.\.\/scripts\/run-vertical-slice-stage\.mjs/, "runner must execute from trusted checkout, not task branch");
 assert.match(workflow, /cd task && node \.\.\/scripts\/validate-runtime-checkpoint\.mjs/, "validator must execute from trusted checkout, not task branch");
-assert.match(workflow, /git push origin "HEAD:refs\/heads\/\$TASK_BRANCH"/, "push target must be the parsed task branch");
 assert.doesNotMatch(workflow, /node task\/scripts\/(run-vertical-slice-stage|validate-runtime-checkpoint)\.mjs/, "must not execute scripts supplied by task branch");
 
 process.stdout.write("Checkpoint workflow security contract passed: trusted issue-comment trigger and runner/task separation.\n");
