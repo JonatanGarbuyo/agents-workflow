@@ -2,6 +2,20 @@
 import assert from "node:assert/strict";
 import { appendFile } from "node:fs/promises";
 
+export async function fetchStageARun({ apiUrl, repository, runId, token, fetchImpl = fetch }) {
+  const response = await fetchImpl(`${apiUrl}/repos/${repository}/actions/runs/${runId}`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28"
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub Actions run lookup failed with HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
 export function validateStageARun(run, {
   runId,
   repository,
@@ -35,17 +49,7 @@ async function main() {
   assert.ok(token, "GITHUB_TOKEN is required to verify run provenance");
   assert.ok(output, "GITHUB_OUTPUT is required");
 
-  const response = await fetch(`${apiUrl}/repos/${repository}/actions/runs/${runId}`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28"
-    }
-  });
-  if (!response.ok) {
-    throw new Error(`GitHub Actions run lookup failed with HTTP ${response.status}`);
-  }
-  const run = await response.json();
+  const run = await fetchStageARun({ apiUrl, repository, runId, token });
   validateStageARun(run, { runId, repository, defaultBranch });
   await appendFile(output, `validated_run_id=${runId}\n`);
   process.stdout.write(`Verified Stage A run ${runId}: trusted workflow, default branch, trusted actor, successful conclusion.\n`);
