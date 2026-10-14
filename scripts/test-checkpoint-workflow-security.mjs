@@ -54,10 +54,10 @@ assert.match(validationStep, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/, "the tru
 assert.match(validationStep, /run: node scripts\/validate-stage-a-run\.mjs/, "run metadata must be validated by trusted code before downloading artifacts");
 assert.match(artifactDownloadStep, /github-token: \$\{\{ github\.token \}\}/, "the pinned artifact downloader needs the token for actions:read");
 assert.doesNotMatch(nonCredentialedWorkflow, /GITHUB_TOKEN|github\.token/, "no unrelated workflow steps may receive the token");
-assert.match(runProvenance, /run\.event, "issue_comment"/, "Stage A run validator must reject artifacts from other event types");
-assert.match(runProvenance, /run\.path, workflowPath/, "Stage A run validator must bind artifacts to the trusted workflow path");
-assert.match(runProvenance, /run\.conclusion, "success"/, "Stage A run validator must require a successful run");
-assert.match(runProvenance, /run\.actor\?\.login, trustedActor/, "Stage A run validator must require the trusted actor");
+assert.match(runProvenance, /run\?\.event, "issue_comment"/, "Stage A run validator must reject artifacts from other event types");
+assert.match(runProvenance, /run\?\.path, workflowPath/, "Stage A run validator must bind artifacts to the trusted workflow path");
+assert.match(runProvenance, /run\?\.conclusion, "success"/, "Stage A run validator must require a successful run");
+assert.match(runProvenance, /run\?\.actor\?\.login, trustedActor/, "Stage A run validator must require the trusted actor");
 assert.match(workflow, /name: Validate Stage A run provenance[\s\S]*?node scripts\/validate-stage-a-run\.mjs[\s\S]*?name: Download immutable Stage A attestation/, "run provenance check must precede artifact download");
 assert.doesNotMatch(workflow, /(?:node|npm|npx)\s+(?:\.\/)?task\//, "task-branch scripts or package commands must not be executed by the privileged job");
 
