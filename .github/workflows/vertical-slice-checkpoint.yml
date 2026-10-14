@@ -59,12 +59,23 @@ jobs:
           TASK_ISSUE_URL: https://github.com/JonatanGarbuyo/agents-workflow/issues/6
         run: node scripts/parse-stage-a-attestation.mjs
 
+      - name: Validate Stage A run provenance
+        id: validated_stage_a
+        if: steps.command.outputs.stage == 'B'
+        env:
+          STAGE_A_RUN_ID: ${{ steps.stage_a.outputs.stage_a_run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/validate-stage-a-run.mjs
+
       - name: Download immutable Stage A attestation
         if: steps.command.outputs.stage == 'B'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: checkpoint-stage-a-${{ steps.stage_a.outputs.stage_a_run_id }}
-          run-id: ${{ steps.stage_a.outputs.stage_a_run_id }}
+          name: checkpoint-stage-a-${{ steps.validated_stage_a.outputs.validated_run_id }}
+          run-id: ${{ steps.validated_stage_a.outputs.validated_run_id }}
           repository: ${{ github.repository }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/stage-a-attestation-download
