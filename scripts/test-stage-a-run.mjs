@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { validateStageARun } from "./validate-stage-a-run.mjs";
+import { fetchStageARun, validateStageARun } from "./validate-stage-a-run.mjs";
 
 const base = {
   id: 123456789,
@@ -41,4 +41,42 @@ for (const [label, patch] of rejected) {
   );
 }
 
-process.stdout.write("Stage A run provenance tests passed: trusted run accepted; wrong ID, status, conclusion, event, workflow, branch, repository, fork, and actor rejected.\n");
+const requestOptions = {
+  apiUrl: "https://api.github.com",
+  repository: expected.repository,
+  runId: expected.runId,
+  token: "test-token"
+};
+let capturedUrl;
+let capturedHeaders;
+const loadedRun = await fetchStageARun({
+  ...requestOptions,
+  fetchImpl: async (url, options) => {
+    capturedUrl = url;
+    capturedHeaders = options.headers;
+    return { ok: true, json: async () => base };
+  }
+});
+assert.equal(capturedUrl, "https://api.github.com/repos/JonatanGarbuyo/agents-workflow/actions/runs/123456789");
+assert.equal(capturedHeaders.Authorization, "Bearer test-token");
+assert.equal(capturedHeaders.Accept, "application/vnd.github+json");
+assert.deepEqual(loadedRun, base, "API lookup should return the response run metadata");
+
+await assert.rejects(
+  fetchStageARun({
+    ...requestOptions,
+    fetchImpl: async () => ({ ok: false, status: 404, json: async () => ({}) })
+  }),
+  /lookup failed with HTTP 404/,
+  "missing or inaccessible Stage A run must fail closed"
+);
+await assert.rejects(
+  fetchStageARun({
+    ...requestOptions,
+    fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({}) })
+  }),
+  /lookup failed with HTTP 403/,
+  "API permission errors must fail closed"
+);
+
+process.stdout.write("Stage A provenance tests passed: trusted metadata accepted; invalid metadata, incorrect API request, HTTP 404 and HTTP 403 rejected.\n");
