@@ -100,3 +100,15 @@ Review checklist to ask the independent reviewer to assess:
 - Follow-up log commit is `e88b1eec3376240c3448431f71538d372f4169a9`. Its push-triggered CI passed in run 38494044823: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38494044823. All job steps, including runtime checkpoint tests and trust-boundary test, completed successfully.
 - Posted the audit summary to PR discussion: https://github.com/JonatanGarbuyo/agents-workflow/pull/2#issuecomment-6158594076.
 - Latest review query still shows only the author's `COMMENTED` review; `requested_reviewers` is empty. Do not equate successful CI with external review.
+
+
+### 2026-10-13 — Git hook hardening follow-up
+
+- Re-checked PR #2 at head `ecf786ae3de0daddbfd5e007bd9588ff453e966b`: still open/draft, unmerged, and reported mergeable/clean by GitHub REST.
+- The latest observed CI run at the time of this follow-up was run 124, `38494091942`, completed successfully; its fixture, validator, parser, runtime-resume and trust-boundary steps all passed. This run predates the hook-hardening commits below and must not be treated as validation of them.
+- Added defense in depth so every Git command invoked by `scripts/run-vertical-slice-stage.mjs` uses `-c core.hooksPath=/dev/null`. This prevents repository-local hooks from running during privileged checkpoint commits.
+- Updated the final workflow push command to set `core.hooksPath=/dev/null` for that Git invocation as well.
+- Added a runtime regression case that installs a failing pre-commit hook in a temporary repository and asserts Stage A completes without executing it; expanded the source-contract test to require hook suppression in the runner and push step.
+- Commits made during this hardening follow-up: runner `30a5c97bd8584efc04e3e5387f4072aac7711732`, runtime test `851aa1893ca0f1956f5fc3176eeddd574004a9a5`, workflow push `b8a147699a6dfd488f38f8de4a7a2f9b8d9b1eeb`, security contract test `f4eaf71dec6c1367c0678dfbd04a78aa06310d41`.
+- CI for these changes is not yet verified in this log. Re-fetch the current PR head and its workflow runs, inspect any failure, and record the run URL before claiming success.
+- No Stage A/B command was posted; no merge or template setting was changed. Independent review remains unavailable, so keep the PR draft/open.
