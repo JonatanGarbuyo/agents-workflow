@@ -11,7 +11,8 @@ const fixturePath = "examples/vertical-slice/runtime-fixture.txt";
 const handoffDir = "agent-handoffs/6";
 
 function git(...args) {
-  return execFileSync("git", args, { encoding: "utf8" }).trim();
+  // Never run task-worktree hooks while making privileged checkpoint commits.
+  return execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...args], { encoding: "utf8" }).trim();
 }
 function fail(message) {
   process.stderr.write(`Checkpoint rejected: ${message}\n`);
