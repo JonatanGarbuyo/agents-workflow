@@ -14,6 +14,8 @@ assert.match(workflow, /startsWith\(github\.event\.comment\.body, '\/checkpoint 
 assert.match(workflow, /github\.ref == format\('refs\/heads\/\{0\}', github\.event\.repository\.default_branch\)/, "workflow must run from the default branch");
 assert.match(workflow, /name: Check out trusted runner from default branch[\s\S]*?ref: \$\{\{ github\.event\.repository\.default_branch \}\}[\s\S]*?persist-credentials: false/, "trusted runner checkout must use default branch without persisting credentials");
 assert.match(workflow, /name: Check out task branch as data\/worktree[\s\S]*?ref: \$\{\{ steps\.command\.outputs\.task_branch \}\}[\s\S]*?path: task/, "task branch must be isolated in task/ and treated as data");
+assert.match(workflow, /name: Check out task branch as data\/worktree[\s\S]*?persist-credentials: false/, "task checkout must not persist a write credential");
+assert.match(workflow, /name: Push checkpoint and handoff commits[\s\S]*?GITHUB_TOKEN: \$\{\{ github\.token \}\}[\s\S]*?git -c "http\.https:\/\/github\.com\/\.extraheader=AUTHORIZATION: basic \$AUTH_HEADER" push origin "HEAD:refs\/heads\/\$TASK_BRANCH"/, "write token must be used only for a fixed-ref push and not stored in git config");
 assert.match(workflow, /name: Parse and validate checkpoint command[\s\S]*?node scripts\/parse-checkpoint-command\.mjs[\s\S]*?name: Check out task branch/, "the command must be parsed by trusted code before its branch value is used");
 assert.match(workflow, /persist-credentials: false/, "the trusted checkout must never persist the write credential");
 assert.match(workflow, /git push origin "HEAD:refs\/heads\/\$TASK_BRANCH"/, "the only push must target the parsed task branch, never a caller-provided refspec");
