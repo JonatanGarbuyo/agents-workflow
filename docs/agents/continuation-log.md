@@ -115,3 +115,12 @@ Review checklist to ask the independent reviewer to assess:
 
 
 - Verification update: PR-triggered run 134, `38494793772`, completed successfully on the hardening head `92b4ea6f5a853cb3da4bdfb3a1ea53862e402279`: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38494793772. All test steps passed, including the new runtime pre-commit-hook suppression regression and the updated workflow security contract. This confirms the hardening code and tests pass CI; it is not an independent security review.
+
+
+### 2026-10-14 — adversarial review: handoff provenance gap
+
+- Re-read the current Stage B acceptance path in `scripts/run-vertical-slice-stage.mjs`. It verifies the Stage A JSON fields, checks that `end_commit` exists and is an ancestor of the current HEAD, and requires the Stage A marker.
+- Finding: these checks establish internal consistency of branch data, but do **not authenticate who created the Stage A handoff**. A writer to the task branch can create the marker and a syntactically valid handoff with `runner: "actions"`, an arbitrary non-current `run_id`, and an ancestor commit SHA. Stage B has no independent proof that the referenced Actions run actually produced that record. The supplied expected SHA prevents a stale-HEAD race; it does not establish handoff provenance.
+- Impact: if the acceptance criteria mean “Stage B must prove Stage A actually ran successfully in a prior workflow execution,” the current implementation does not yet satisfy that requirement. This is a checkpoint-integrity gap, distinct from the already-addressed code-execution/token boundary.
+- Required design follow-up before claiming authenticated recovery: bind Stage B to an immutable workflow-produced attestation outside the task branch (for example, a Stage A Actions artifact retrieved by run ID and checked against the task branch/final SHA, with appropriate `actions: read` permission and pinned actions), or another trusted attestation mechanism. Do not treat the JSON fields in the task branch as proof on their own.
+- No exploit branch was pushed and no Stage A/B run was performed. The observation is based on the current source acceptance conditions. Keep PR #2 draft/open and do not enable the template until the intended provenance guarantee is clarified and, if required, implemented and tested.
