@@ -81,3 +81,14 @@ Review checklist to ask the independent reviewer to assess:
 - Added PR comment linking this log: https://github.com/JonatanGarbuyo/agents-workflow/pull/2#issuecomment-6158556156.
 - CI for the new head is running at https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38493771534 (run 116, status was `in_progress` at last check). Do not record it as passing until rechecked.
 - PR remains open/draft and unmerged; requested reviewers are still empty. The only review submission remains self-authored. No checkpoint stages were run.
+
+### 2026-10-13 — second continuation / source audit
+
+- Inspected the current PR workflow, stage runner, final-state validator, security contract test, issue #6, and issue/PR discussion directly from GitHub.
+- CI run 38493771534 completed successfully; all listed steps passed, including parser tests, runtime resume/rejection tests, and the workflow trust-boundary contract test. Link: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38493771534.
+- Current PR head before this log update was `9ecea484db30f0a116f1057b693079a74ddd91d1`; PR remains open/draft/unmerged.
+- Source audit confirmed the current YAML uses the `issue_comment` event, issue #6 and exact owner allowlist, checks out the default branch's runner separately from the task worktree, disables persisted credentials on both checkouts, and exposes `GITHUB_TOKEN` only in the final fixed-ref push step. The parser restricts the branch to the pilot branch.
+- Stage runner checks fixed write paths and handoff JSON paths for symlinks, uses exclusive file creation for handoffs, checks Stage B expected HEAD and Stage A handoff ancestry. The final-state validator checks two markers, exactly two handoffs and that handoff commit references exist.
+- Remaining concern: the security regression test is predominantly structural/source-pattern based. It does not itself prove every runtime threat-model claim. Independent review should specifically challenge task-controlled Git metadata/attributes and any possible hook/filter/config execution paths during checkout/add/commit/push, verify token scope and race behavior, and consider a malicious-task-branch integration test. Do not claim these are proven secure just because current CI passes.
+- Issue #6 still documents the Actions-to-Actions run as not yet executed. No Stage A/B command was posted; no merge or template change was made.
+- No independent reviewer identity has been established from the available PR/issue discussion. Do not request review from an arbitrary account; obtain an eligible reviewer from the repository owner/team.
