@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile, readdir, symlink } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, rm, writeFile, readdir, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -61,6 +61,16 @@ async function stageA(cwd, runId = "100") {
 
 const workdirs = [];
 try {
+  // A hook present in the worktree's Git hook directory must not run during privileged commits.
+  const hooks = await setup();
+  workdirs.push(hooks);
+  const hookMarker = join(hooks, "pre-commit-hook-ran.txt");
+  const hookPath = join(hooks, ".git/hooks/pre-commit");
+  await writeFile(hookPath, `#!/bin/sh\nprintf ran > '${hookMarker}'\nexit 99\n`);
+  await chmod(hookPath, 0o755);
+  await stageA(hooks, "50");
+  await assert.rejects(readFile(hookMarker, "utf8"), { code: "ENOENT" }, "task-worktree pre-commit hook must not execute");
+
   // Happy path: a fresh Stage B execution resumes from the exact Stage A branch tip.
   const happy = await setup();
   workdirs.push(happy);
@@ -123,7 +133,7 @@ try {
   expectRejected(runStage(symlinkHandoff, "A", "375"), "symlinked pre-existing handoff");
   assert.equal(await readFile(handoffTarget, "utf8"), "{}\\n", "symlinked handoff target must not be modified");
 
-  process.stdout.write("Runtime checkpoint tests passed: fresh-run resume, stale SHA, repeated Stage B, missing handoff, missing marker, and symlink rejection.\n");
+  process.stdout.write("Runtime checkpoint tests passed: fresh-run resume, stale SHA, repeated Stage B, missing handoff, missing marker, symlink rejection, and hook suppression.\n");
 } finally {
   await Promise.all(workdirs.map((cwd) => rm(cwd, { recursive: true, force: true })));
 }
