@@ -121,7 +121,7 @@ const handoff = {
   start_commit: startCommit,
   end_commit: endCommit,
   changed_files: [fixturePath],
-  validation: { command: "checkpoint stage runner and handoff metadata checks", result: "passed" },
+  validation: { command: "stage runner preconditions and generated handoff metadata self-checks only; not final-state validation", result: "passed" },
   checkpoint_observed: stage === "A" ? "none" : "stage-a-complete",
   next_action: stage === "A" ? "Dispatch a fresh Stage B run with this run's final branch commit SHA as expected_checkpoint." : "Review the two handoffs and confirm cross-runner testing separately."
 };
