@@ -23,6 +23,10 @@ The privileged controller is intentionally unavailable until its workflow file i
 - The workflow serializes writes by branch using a concurrency group. This is a single-writer safeguard, not a general distributed lock.
 - The privileged workflow uses `issue_comment`, which runs the workflow from the repository default branch. It accepts commands only on issue #6 from the explicitly allowlisted owner account `JonatanGarbuyo`. It parses the comment into constrained outputs before checking out the task branch. The runner and validator are loaded from the default branch; the task branch is a separate checkout and is only the target of fixture/handoff writes. Branch-name checks are defense in depth, not the trust boundary.
 
+## Validation scope of each handoff
+
+The `validation` field in each stage handoff records only that stage runner's precondition checks and the generated handoff's metadata self-check. It explicitly does **not** claim that the final runtime state was validated. Stage B's workflow runs `validate-runtime-checkpoint.mjs` as a separate gate before pushing; that validator checks both markers and both handoffs. Stage A cannot pass the final-state validator because Stage B has not run yet.
+
 ## What this proves—and what it does not
 
 A successful run proves **Actions → fresh Actions run** recovery from committed Git state. It does not prove either Actions/OpenCode direction. OpenCode must later use the same issue, branch, schema, markers, and recovery rules without relying on this Actions process or any conversation transcript. Do not close the parent portability issue or enable the template until both cross-runner directions have evidence.
