@@ -39,8 +39,14 @@ const pushStepEnd = workflow.indexOf("      - name: Print final checkpoint refer
 assert.ok(pushStepStart >= 0 && pushStepEnd > pushStepStart, "the credentialed push step must have a clear boundary");
 const pushStep = workflow.slice(pushStepStart, pushStepEnd);
 const nonPushWorkflow = workflow.slice(0, pushStepStart) + workflow.slice(pushStepEnd);
-assert.match(pushStep, /GITHUB_TOKEN: \$\{\{ github\.token \}\}/, "the final push step must receive the write token explicitly");
-assert.doesNotMatch(nonPushWorkflow, /GITHUB_TOKEN|github\.token/, "no other workflow step may expose the write token");
+const downloadStepStart = workflow.indexOf("      - name: Download immutable Stage A attestation");
+const downloadStepEnd = workflow.indexOf("      - name: Verify Stage A provenance against immutable artifact", downloadStepStart);
+assert.ok(downloadStepStart >= 0 && downloadStepEnd > downloadStepStart, "artifact download step must have a clear boundary");
+const artifactDownloadStep = workflow.slice(downloadStepStart, downloadStepEnd);
+const nonCredentialedWorkflow = nonPushWorkflow.replace(artifactDownloadStep, "");
+assert.match(pushStep, /GITHUB_TOKEN: \\$\\{\\{ github\\.token \\}\\}/, "the final push step must receive the write token explicitly");
+assert.match(artifactDownloadStep, /github-token: \\$\\{\\{ github\\.token \\}\\}/, "only the pinned artifact downloader may receive the token for actions:read");
+assert.doesNotMatch(nonCredentialedWorkflow, /GITHUB_TOKEN|github\\.token/, "no scripts or unrelated workflow steps may receive the token");
 assert.doesNotMatch(workflow, /(?:node|npm|npx)\s+(?:\.\/)?task\//, "task-branch scripts or package commands must not be executed by the privileged job");
 
 assert.match(workflow, /permissions:[\s\S]*?contents: write[\s\S]*?actions: read/, "artifact-based provenance requires explicit Actions read permission");
