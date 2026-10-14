@@ -96,3 +96,7 @@ Review checklist to ask the independent reviewer to assess:
 - After the source-audit log commit, PR CI completed successfully on head `82a4dae9513a7f0bdd23de057af1595953bb973b`: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38493998772 (run 120). The job's test steps all passed.
 - The push-triggered run for the same commit was observed in progress at the last status query: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38493993327. Recheck before claiming push CI is green.
 - GitHub REST PR metadata reports `mergeable_state=clean` and `mergeable=true` on the current head; PR remains draft/open. The normalized connector briefly reported `mergeable=false`, so the REST response is the more recent direct check.
+
+- Follow-up log commit is `e88b1eec3376240c3448431f71538d372f4169a9`. Its push-triggered CI passed in run 38494044823: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38494044823. All job steps, including runtime checkpoint tests and trust-boundary test, completed successfully.
+- Posted the audit summary to PR discussion: https://github.com/JonatanGarbuyo/agents-workflow/pull/2#issuecomment-6158594076.
+- Latest review query still shows only the author's `COMMENTED` review; `requested_reviewers` is empty. Do not equate successful CI with external review.
