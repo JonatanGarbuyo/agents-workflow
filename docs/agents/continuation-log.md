@@ -145,3 +145,14 @@ Review checklist to ask the independent reviewer to assess:
 - Updated the workflow trust-boundary contract to require the provenance check before artifact download and to constrain where the token is explicitly exposed.
 - CI passed on head \`504b2bdc6908fbd0c56f2c1c2d90d7e1d2f1817e\`: push run 38496375044 (https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38496375044) and PR run 38496379037 (https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38496379037). The PR run explicitly passed the new “Test Stage A workflow run provenance” and existing workflow trust-boundary steps.
 - This is a meaningful source/test-level improvement, but the end-to-end issue_comment Stage A/B flow has not been run. Before enabling it, confirm the live run metadata for an actual Stage A run matches the validator's assumptions and complete the independent review/security gate. No Stage A/B command, merge, or template enablement was performed.
+
+
+### 2026-10-14 — exercise the Stage A run-metadata API failure path
+
+- Refactored \`scripts/validate-stage-a-run.mjs\` to expose \`fetchStageARun()\` as a small testable unit. The production path still queries the repository Actions API and validates the run metadata before artifact download.
+- Expanded \`scripts/test-stage-a-run.mjs\` to assert the exact API URL, Bearer authorization header, GitHub media-type header, and returned run metadata. Added explicit negative cases for HTTP 404 (run missing/inaccessible) and HTTP 403 (permission denied); both must throw before artifact download can proceed.
+- CI passed on head \`5417d14d3f8f1dc8ea90fdad4e8a2a214ac0c1b9\`:
+  - Push: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38633810068
+  - PR: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38633815239
+  - The PR run passed the dedicated “Test Stage A workflow run provenance” and the broader “Test checkpoint workflow trust boundary” steps.
+- This improves coverage of the API boundary and fail-closed behavior, but uses mocked HTTP responses; it is not a live Stage A run and does not prove the issue-comment workflow's real metadata shape. The controller is not on \`main\`, so no Stage A/B execution was attempted. PR remains draft/open, no merge/template enablement.
