@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const runnerSource = await readFile(join(repoRoot, "scripts/run-vertical-slice-stage.mjs"), "utf8");
 const validatorSource = await readFile(join(repoRoot, "scripts/validate-runtime-checkpoint.mjs"), "utf8");
+const createAttestationSource = await readFile(join(repoRoot, "scripts/create-stage-a-attestation.mjs"), "utf8");
+const verifyAttestationSource = await readFile(join(repoRoot, "scripts/verify-stage-a-attestation.mjs"), "utf8");
 const fixtureSource = await readFile(join(repoRoot, "examples/vertical-slice/runtime-fixture.txt"), "utf8");
 const issueUrl = "https://github.com/JonatanGarbuyo/agents-workflow/issues/6";
 
@@ -22,8 +24,10 @@ async function setup() {
   await mkdir(join(cwd, "examples/vertical-slice"), { recursive: true });
   await writeFile(join(cwd, "scripts/run-vertical-slice-stage.mjs"), runnerSource);
   await writeFile(join(cwd, "scripts/validate-runtime-checkpoint.mjs"), validatorSource);
+  await writeFile(join(cwd, "scripts/create-stage-a-attestation.mjs"), createAttestationSource);
+  await writeFile(join(cwd, "scripts/verify-stage-a-attestation.mjs"), verifyAttestationSource);
   await writeFile(join(cwd, "examples/vertical-slice/runtime-fixture.txt"), fixtureSource);
-  git(cwd, "init", "-b", "test/vertical-slice-test");
+  git(cwd, "init", "-b", "test/vertical-slice-6");
   git(cwd, "config", "user.name", "Checkpoint test");
   git(cwd, "config", "user.email", "checkpoint-test@example.invalid");
   git(cwd, "add", ".");
@@ -40,7 +44,7 @@ function runStage(cwd, stage, runId, checkpoint = "") {
     env: {
       ...process.env,
       GITHUB_RUN_ID: String(runId),
-      GITHUB_REF_NAME: "test/vertical-slice-test",
+      GITHUB_REF_NAME: "test/vertical-slice-6",
       TASK_ISSUE_URL: issueUrl,
     },
   });
@@ -75,6 +79,44 @@ try {
   const happy = await setup();
   workdirs.push(happy);
   const checkpoint = await stageA(happy);
+  // Stage A provenance is stored in an Actions artifact, not just mutable task-branch JSON.
+  const artifactPath = join(happy, "attestation.json");
+  const createAttestation = spawnSync(process.execPath, ["scripts/create-stage-a-attestation.mjs"], {
+    cwd: happy,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      TASK_WORKTREE: happy,
+      TASK_BRANCH: "test/vertical-slice-6",
+      TASK_ISSUE_URL: issueUrl,
+      GITHUB_RUN_ID: "100",
+      ATTESTATION_OUTPUT: artifactPath,
+    },
+  });
+  assert.equal(createAttestation.status, 0, `Stage A attestation should be created\n${createAttestation.stderr}`);
+  const verifyAttestation = (expectedCheckpoint) => spawnSync(process.execPath, ["scripts/verify-stage-a-attestation.mjs"], {
+    cwd: happy,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      TASK_WORKTREE: happy,
+      TASK_BRANCH: "test/vertical-slice-6",
+      TASK_ISSUE_URL: issueUrl,
+      EXPECTED_CHECKPOINT: expectedCheckpoint,
+      ATTESTATION_PATH: artifactPath,
+    },
+  });
+  const verifiedAttestation = verifyAttestation(checkpoint);
+  assert.equal(verifiedAttestation.status, 0, `valid Stage A artifact should verify\n${verifiedAttestation.stderr}`);
+  const handoffDir = join(happy, "agent-handoffs/6");
+  const stageAHandoff = join(handoffDir, (await readdir(handoffDir)).find((name) => name.endsWith(".json")));
+  const originalHandoff = await readFile(stageAHandoff);
+  await writeFile(stageAHandoff, Buffer.concat([originalHandoff, Buffer.from(" ")]));
+  const tamperedAttestation = verifyAttestation(checkpoint);
+  assert.notEqual(tamperedAttestation.status, 0, "modified task-branch handoff must not match immutable artifact");
+  await writeFile(stageAHandoff, originalHandoff);
+  const wrongCheckpoint = verifyAttestation("0".repeat(40));
+  assert.notEqual(wrongCheckpoint.status, 0, "artifact must reject a checkpoint SHA it did not attest");
   const stale = runStage(happy, "B", "200", git(happy, "rev-parse", "HEAD~1"));
   expectRejected(stale, "stale checkpoint");
   const resumed = runStage(happy, "B", "201", checkpoint);
@@ -133,7 +175,7 @@ try {
   expectRejected(runStage(symlinkHandoff, "A", "375"), "symlinked pre-existing handoff");
   assert.equal(await readFile(handoffTarget, "utf8"), "{}\\n", "symlinked handoff target must not be modified");
 
-  process.stdout.write("Runtime checkpoint tests passed: fresh-run resume, stale SHA, repeated Stage B, missing handoff, missing marker, symlink rejection, and hook suppression.\n");
+  process.stdout.write("Runtime checkpoint tests passed: fresh-run resume, immutable Stage A attestation, tamper rejection, stale SHA, repeated Stage B, missing handoff, missing marker, symlink rejection, and hook suppression.\n");
 } finally {
   await Promise.all(workdirs.map((cwd) => rm(cwd, { recursive: true, force: true })));
 }
