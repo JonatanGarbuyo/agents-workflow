@@ -112,3 +112,6 @@ Review checklist to ask the independent reviewer to assess:
 - Commits made during this hardening follow-up: runner `30a5c97bd8584efc04e3e5387f4072aac7711732`, runtime test `851aa1893ca0f1956f5fc3176eeddd574004a9a5`, workflow push `b8a147699a6dfd488f38f8de4a7a2f9b8d9b1eeb`, security contract test `f4eaf71dec6c1367c0678dfbd04a78aa06310d41`.
 - CI for these changes is not yet verified in this log. Re-fetch the current PR head and its workflow runs, inspect any failure, and record the run URL before claiming success.
 - No Stage A/B command was posted; no merge or template setting was changed. Independent review remains unavailable, so keep the PR draft/open.
+
+
+- Verification update: PR-triggered run 134, `38494793772`, completed successfully on the hardening head `92b4ea6f5a853cb3da4bdfb3a1ea53862e402279`: https://github.com/JonatanGarbuyo/agents-workflow/actions/runs/38494793772. All test steps passed, including the new runtime pre-commit-hook suppression regression and the updated workflow security contract. This confirms the hardening code and tests pass CI; it is not an independent security review.
